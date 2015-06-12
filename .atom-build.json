@@ -1,0 +1,4 @@
+{
+  "cmd": "./buildAndRunTests.sh",
+  "sh": true
+}
