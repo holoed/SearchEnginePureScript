@@ -1,14 +1,16 @@
 module SearchEngine where
 
 import Data.Maybe.Unsafe (fromJust)
-import Data.Map (Map(), fromList, lookup)
+import Data.Map (Map(), fromList, lookup, insert, empty)
 import Control.Apply
 import Data.Tuple
 import Data.String (trim, split, toCharArray, fromCharArray, toLower)
 import Data.Char
-import Data.Array (range, length, filter, null, sort, sortBy, concatMap, concat)
+import Data.Array (range, length, filter, null, sort, sortBy, groupBy, drop, concatMap, concat)
 import Data.Foldable (foldl)
 import Data.Maybe
+import Data.Function (on)
+import Data.Array.Unsafe (head)
 
 type Doc = [Line]
 type Line = String
@@ -16,6 +18,8 @@ type Word = String
 type LineNumber = Number
 type Pos = Number
 type Index = Map Word [Tuple Pos LineNumber]
+
+data PartialTermIndex = D (Map Char (Tuple [[Char]] PartialTermIndex))
 
 both :: forall a. (a -> Boolean) -> (a -> Boolean) -> a -> Boolean
 both = lift2 (&&)
@@ -68,7 +72,12 @@ accumulate = foldl f []
 
 createTermIndex :: Doc -> Index
 createTermIndex =  fromList <<< accumulate <<< makeLists <<< sort <<< allNumWords <<< numLines
---
---
--- search :: Index -> String -> [LineNumber]
--- search i s = []
+
+createPartialTermIndex :: [[Char]] -> PartialTermIndex
+createPartialTermIndex []  = D empty
+createPartialTermIndex ws  =
+    foldl (\(D m) (Tuple k ws') -> D $ insert k (Tuple ws' (createPartialTermIndex ((<$>) (drop 1) ws'))) m) (D empty) <<<
+    (<$>) (\ws' -> Tuple (head (head ws')) ws') <<<
+    groupBy ((==) `on` head) <<<
+    sortBy (compare `on` head) <<<
+    filter (not <<< null) $ ws
