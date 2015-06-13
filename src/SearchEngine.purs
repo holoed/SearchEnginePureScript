@@ -73,11 +73,13 @@ accumulate = foldl f []
 createTermIndex :: Doc -> Index
 createTermIndex =  fromList <<< accumulate <<< makeLists <<< sort <<< allNumWords <<< numLines
 
-createPartialTermIndex :: [[Char]] -> PartialTermIndex
-createPartialTermIndex []  = D empty
-createPartialTermIndex ws  =
-    foldl (\(D m) (Tuple k ws') -> D $ insert k (Tuple ws' (createPartialTermIndex ((<$>) (drop 1) ws'))) m) (D empty) <<<
-    (<$>) (\ws' -> Tuple (head (head ws')) ws') <<<
-    groupBy ((==) `on` head) <<<
-    sortBy (compare `on` head) <<<
-    filter (not <<< null) $ ws
+createPartialTermIndex :: [String] -> PartialTermIndex
+createPartialTermIndex = createPartialTermIndex' <<< (<$>) toCharArray
+  where
+    createPartialTermIndex' []  = D empty
+    createPartialTermIndex' ws  =
+        foldl (\(D m) (Tuple k ws') -> D $ insert k (Tuple ws' (createPartialTermIndex' ((<$>) (drop 1) ws'))) m) (D empty) <<<
+        (<$>) (\ws' -> Tuple (head (head ws')) ws') <<<
+        groupBy ((==) `on` head) <<<
+        sortBy (compare `on` head) <<<
+        filter (not <<< null) $ ws
