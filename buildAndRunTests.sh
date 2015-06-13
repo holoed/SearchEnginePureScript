@@ -1,1 +1,1 @@
-pulp test
+pulp run

@@ -1,85 +1,77 @@
-module SearchEngine where
+module Main where
 
-import Debug.Trace
---import Data.Function
---import Data.Char
---import Data.List
-import Data.Maybe.Unsafe (fromJust)
-import Data.Map (Map(), fromList, lookup)
-import Control.Apply
---import Control.Monad
 import Data.Tuple
-import Data.String (trim, split, toCharArray, fromCharArray, toLower)
-import Data.Char
---import Data.Sequence (fmap)
-import Data.Array (range, length, filter, null, sort, sortBy, concatMap, concat)
-import Data.Foldable (foldl)
-import Data.Maybe
+import Data.Map      (toList)
+import SearchEngine
+import Test.Spec (describe, pending, it)
+import Test.Spec.Node
+import Test.Spec.Assertions
+import Test.Spec.Reporter.Console
 
-type Doc = [Line]
-type Line = String
-type Word = String
-type LineNumber = Number
-type Index = Map Word [LineNumber]
-type Frequency = Number
+main = runNode [consoleReporter] do
 
-both :: forall a. (a -> Boolean) -> (a -> Boolean) -> a -> Boolean
-both = lift2 (&&)
+  describe "numLines tests" $ do
 
-lines :: String -> [String]
-lines s = trim <$> (split "\n" s)
+    it "should return first line with index" $
+      numLines ["Hello World"] `shouldEqual` [Tuple "Hello World" 0]
 
-words :: String -> [String]
-words s = trim <$> (split " " s)
+    it "should return two lines with index" $
+      numLines ["Hello", "World"] `shouldEqual` [Tuple "Hello" 0, Tuple "World" 1]
 
-numLines :: Doc -> [Tuple Line LineNumber]
-numLines doc = flip zip ns doc
-    where ns = range 1 (length doc)
+    it "should return n lines with index" $
+      numLines ["Welcome to", "Real World", "of Haskell"]
+       `shouldEqual` [Tuple "Welcome to" 0, Tuple "Real World" 1, Tuple "of Haskell" 2]
 
-isUpperCaseLetter :: Char -> Boolean
-isUpperCaseLetter ch = toCharCode ch >= 65 && toCharCode ch <= 90
+  describe "cleanWords tests" $ do
 
-isLowerCaseLetter :: Char -> Boolean
-isLowerCaseLetter ch = toCharCode ch >= 97 && toCharCode ch <= 122
+    it "should return words" $
+       cleanWords ["Hello", "World"] `shouldEqual` ["hello", "world"]
 
-isLetter :: Char -> Boolean
-isLetter ch = isUpperCaseLetter ch || isLowerCaseLetter ch
+    it "should remove numbers" $
+       cleanWords ["Welcome6"] `shouldEqual` ["welcome"]
 
-isAscii :: Char -> Boolean
-isAscii ch = toCharCode ch >= 0 && toCharCode ch <= 127
+    it "should remove non ascii chars" $
+       cleanWords ["This,", "is", "an", "experiment'", "of", "great", "%"]
+         `shouldEqual` ["this", "is", "an", "experiment", "of", "great"]
 
-cleanWords :: [Word] -> [Word]
-cleanWords = (<$>) toLower <<<
-             (<$>) fromCharArray <<<
-             filter (not <<< null) <<<
-             (<$>) (filter (both isLetter isAscii)) <<<
-             (<$>) toCharArray
+  describe "allNumWords tests" $ do
 
-allNumWords :: [Tuple Line LineNumber] -> [Tuple Word LineNumber]
-allNumWords = (>>= (\(Tuple l i) -> (<$>) (\w -> Tuple w i) $ cleanWords $ words l))
+    it "should convert lines in to words keeping line numbers" $
+       allNumWords [Tuple "Welcome to" 0, Tuple "the real" 1]
+         `shouldEqual` [Tuple "welcome" (Tuple 0 0), Tuple "to" (Tuple 1 0), Tuple "the" (Tuple 0 1), Tuple "real" (Tuple 1 1)]
 
-makeLists :: [Tuple Word LineNumber] -> [Tuple Word [LineNumber]]
-makeLists = (<$>) (\(Tuple w i) -> Tuple w [i])
+    it "should clean while splitting into words" $
+       allNumWords [Tuple "Lo ha detto papa'" 0, Tuple "che va' bene, capito" 1]
+         `shouldEqual` [Tuple "lo" (Tuple 0 0), Tuple "ha" (Tuple 1 0), Tuple "detto" (Tuple 2 0), Tuple "papa" (Tuple 3 0),
+                     Tuple "che" (Tuple 0 1), Tuple "va" (Tuple 1 1), Tuple "bene" (Tuple 2 1), Tuple "capito" (Tuple 3 1)]
 
-accumulate :: [Tuple Word [LineNumber]] -> [Tuple Word [LineNumber]]
-accumulate = foldl f []
-           where f [] x = [x]
-                 f ((Tuple w ls):xs) (Tuple w2 [l]) | w == w2 = (Tuple w (l:ls)):xs
-                 f ((Tuple w ls):xs) (Tuple w2 [l]) | w /= w2 = (Tuple w2 [l]):((Tuple w ls):xs)
+  describe "createTermIndex tests" $ do
 
+    it "should create an empty index for an empty document" $
+       (toList <<< createTermIndex) []
+         `shouldEqual` []
 
-createIndex :: Doc -> Index
-createIndex =  fromList <<< accumulate <<< makeLists <<< sort <<< allNumWords <<< numLines
+    it "should create an index of one element for a single word doc" $
+       (toList <<< createTermIndex) ["Hello"]
+         `shouldEqual` [Tuple "hello" [Tuple 0 0]]
 
-frequencies :: forall a. (Eq a, Ord a) => [a] -> [Tuple a Frequency]
-frequencies = sortBy (\(Tuple _ x) (Tuple _ y) -> compare y x) <<< foldl count [] <<< sort
-  where
-    count [] x = [Tuple x 1]
-    count ((Tuple y i):xs) x | x == y = (Tuple y (i + 1)):xs
-    count ((Tuple y i):xs) x          = (Tuple x 1):((Tuple y i):xs)
+    it "should create an index" $ do
+       (toList <<< createTermIndex) ["Hello World"]
+         `shouldEqual` [Tuple "hello" [Tuple 0 0], Tuple "world" [Tuple 1 0]]
 
-search :: Index -> String -> [LineNumber]
-search i s = (<$>) fst (filter (\(Tuple _ f) -> f == l) (frequencies found))
-  where ws = cleanWords (words s)
-        l = length ws
-        found = concat $ concatMap (maybe [] (\x -> [x]) <<< flip lookup i) ws
+       (toList <<< createTermIndex) ["Back to the Future", "A few good man"]
+         `shouldEqual`[Tuple "a" [Tuple 0 1], Tuple "back" [Tuple 0 0],
+                       Tuple "few" [Tuple 1 1], Tuple "future" [Tuple 3 0],
+                       Tuple "good" [Tuple 2 1], Tuple "man" [Tuple 3 1],
+                       Tuple "the" [Tuple 2 0], Tuple "to" [Tuple 1 0]]
+
+       (toList <<< createTermIndex) ["A few good men", "All the President's men"]
+         `shouldEqual`[Tuple "a" [Tuple 0 0], Tuple "all" [Tuple 0 1], Tuple "few"[Tuple 1 0],
+                       Tuple "good" [Tuple 2 0], Tuple "men" [Tuple 3 1, Tuple 3 0],
+                       Tuple "presidents" [Tuple 2 1], Tuple "the" [Tuple 1 1]]
+
+       (toList <<< createTermIndex) ["Back to the future", "In to the future", "Back in time"]
+         `shouldEqual`[Tuple "back" [Tuple 0 2, Tuple 0 0],
+                       Tuple "future" [Tuple 3 1 , Tuple 3 0], Tuple "in" [Tuple 1 2, Tuple 0 1],
+                       Tuple "the" [Tuple 2 1, Tuple 2 0], Tuple "time"[Tuple 2 2],
+                       Tuple "to" [Tuple 1 1, Tuple 1 0]]
