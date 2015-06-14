@@ -3,7 +3,6 @@ node_js:
   - "0.10"
 install:
   - "npm install bower grunt-cli pulp purescript -g"
-  - "npm install"
   - "bower install"
   - "bower update"
 script:
