@@ -6,7 +6,7 @@ import Control.Apply
 import Data.Tuple
 import Data.String (trim, split, toCharArray, fromCharArray, toLower, indexOf, joinWith)
 import Data.Char
-import Data.Array (range, length, filter, null, sort, sortBy, groupBy, drop, concatMap, concat)
+import Data.Array (range, length, filter, null, sort, sortBy, groupBy, drop, concatMap, concat, group)
 import Data.Foldable (foldl, all)
 import Data.Maybe
 import Data.Function (on)
@@ -143,3 +143,6 @@ search i s = toTuple <$> (concat (filter predicate (groupByLine plwords)))
             predicate = both (equalTermsAndResults cleaned_words) consecutiveWords
             cleaned_words = (cleanWords <<< words) s
             plwords = getIndexedWords i cleaned_words
+
+searchLineNumbers :: Tuple Index PartialTermIndex -> String -> [LineNumber]
+searchLineNumbers i s =  head <$> (group (sort ((snd <<< snd) <$> (search i s))))

@@ -124,3 +124,9 @@ main = runNode [consoleReporter] do
         search index "The fu" `shouldEqual` [Tuple "the" (Tuple 2 0), Tuple "fu" (Tuple 3 0), Tuple "the" (Tuple 0 2), Tuple "fu" (Tuple 1 2)]
         search index "the fut" `shouldEqual` [Tuple "the" (Tuple 2 0), Tuple "fut" (Tuple 3 0)]
         search index "the fus" `shouldEqual` [Tuple "the" (Tuple 0 2), Tuple "fus" (Tuple 1 2)]
+
+  describe "search Line numbers" $ do
+
+    it "should find line numbers" $ do
+        let index  = createIndex ["Back to the future","The bad guy","The fuss is all about"]
+        searchLineNumbers index "the fu" `shouldEqual` [0, 2]
