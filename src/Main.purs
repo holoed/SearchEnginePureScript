@@ -111,3 +111,16 @@ main = runNode [consoleReporter] do
         searchTermsFromPartial (toCharArray "w") partial_term_index `shouldEqual` (Tuple true [toCharArray "welcome", toCharArray "world"])
         searchTermsFromPartial (toCharArray "wel") partial_term_index `shouldEqual` (Tuple true [toCharArray "welcome"])
         searchTermsFromPartial (toCharArray "wo") partial_term_index `shouldEqual` (Tuple true [toCharArray "world"])
+
+  describe "Partial term search" $ do
+
+    it "should find item with partial term" $ do
+        let index = createIndex ["Back to the future", "Behind emeny lines"]
+        search index "fut" `shouldEqual` [Tuple "fut" (Tuple 3 0)]
+        search index "back to the fut" `shouldEqual` [Tuple "back" (Tuple 0 0), Tuple "to" (Tuple 1 0), Tuple "the" (Tuple 2 0), Tuple "fut" (Tuple 3 0)]
+
+    it "should find multiple terms with partial search" $ do
+        let index  = createIndex ["Back to the future","The bad guy","The fuss is all about"]
+        search index "The fu" `shouldEqual` [Tuple "the" (Tuple 2 0), Tuple "fu" (Tuple 3 0), Tuple "the" (Tuple 0 2), Tuple "fu" (Tuple 1 2)]
+        search index "the fut" `shouldEqual` [Tuple "the" (Tuple 2 0), Tuple "fut" (Tuple 3 0)]
+        search index "the fus" `shouldEqual` [Tuple "the" (Tuple 0 2), Tuple "fus" (Tuple 1 2)]
