@@ -1,6 +1,7 @@
 module Main where
 
 import Data.Tuple
+import Data.String (toCharArray)
 import Data.Map      (toList)
 import SearchEngine
 import Test.Spec (describe, pending, it)
@@ -75,3 +76,38 @@ main = runNode [consoleReporter] do
                        Tuple "future" [Tuple 3 1 , Tuple 3 0], Tuple "in" [Tuple 1 2, Tuple 0 1],
                        Tuple "the" [Tuple 2 1, Tuple 2 0], Tuple "time"[Tuple 2 2],
                        Tuple "to" [Tuple 1 1, Tuple 1 0]]
+
+  describe "search tests" $ do
+
+    it "should find single word document" $ do
+        let index = createIndex ["Hello"]
+        search index "Hello" `shouldEqual` [Tuple "hello" (Tuple 0 0)]
+
+    it "should find word in two words document" $ do
+        let index = createIndex ["Hello World"]
+        search index "World" `shouldEqual` [Tuple "world" (Tuple 1 0)]
+
+    it "should find word in two lines doc" $ do
+        let index = createIndex ["Hello", "World"]
+        search index "World" `shouldEqual` [Tuple "world" (Tuple 0 1)]
+
+    it "should find most likely line" $ do
+        let index = createIndex [
+               "Back to the future",
+               "Behind enemy lines",
+               "Behind the planet of the apes",
+               "Planet of the apes"]
+        search index "Behind enemy" `shouldEqual` [Tuple "behind" (Tuple 0 1), Tuple "enemy" (Tuple 1 1)]
+
+  describe "Partial term index tests" $ do
+
+    it "should find all words starting with" $ do
+        let partial_term_index  = createPartialTermIndex (words "welcome to the real world of back and bad")
+        searchTermsFromPartial (toCharArray "b") partial_term_index `shouldEqual` (Tuple true [toCharArray "back", toCharArray "bad"])
+        searchTermsFromPartial (toCharArray "ba") partial_term_index `shouldEqual` (Tuple true [toCharArray "back", toCharArray "bad"])
+        searchTermsFromPartial (toCharArray "bac") partial_term_index `shouldEqual` (Tuple true [toCharArray "back"])
+        searchTermsFromPartial (toCharArray "bad") partial_term_index `shouldEqual` (Tuple true [])
+        searchTermsFromPartial (toCharArray "backs") partial_term_index `shouldEqual` (Tuple false [])
+        searchTermsFromPartial (toCharArray "w") partial_term_index `shouldEqual` (Tuple true [toCharArray "welcome", toCharArray "world"])
+        searchTermsFromPartial (toCharArray "wel") partial_term_index `shouldEqual` (Tuple true [toCharArray "welcome"])
+        searchTermsFromPartial (toCharArray "wo") partial_term_index `shouldEqual` (Tuple true [toCharArray "world"])
