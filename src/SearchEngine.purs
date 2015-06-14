@@ -4,10 +4,10 @@ import Data.Maybe.Unsafe (fromJust)
 import Data.Map (Map(), fromList, lookup, insert, empty, values, keys)
 import Control.Apply
 import Data.Tuple
-import Data.String (trim, split, toCharArray, fromCharArray, toLower)
+import Data.String (trim, split, toCharArray, fromCharArray, toLower, indexOf, joinWith)
 import Data.Char
 import Data.Array (range, length, filter, null, sort, sortBy, groupBy, drop, concatMap, concat)
-import Data.Foldable (foldl)
+import Data.Foldable (foldl, all)
 import Data.Maybe
 import Data.Function (on)
 import Data.Array.Unsafe (head)
@@ -18,6 +18,8 @@ type Word = String
 type LineNumber = Number
 type Pos = Number
 type Index = Map Word [Tuple Pos LineNumber]
+
+data IndexedWord = IndexedWord { word:: Word, pos:: Pos, line:: LineNumber }
 
 data PartialTermIndex = D (Map Char (Tuple [[Char]] PartialTermIndex))
 
@@ -98,3 +100,46 @@ searchTermsFromPartial s d = findTerms s d
 createIndex :: Doc -> Tuple Index PartialTermIndex
 createIndex doc = Tuple index (createPartialTermIndex (keys index))
   where index = createTermIndex doc
+
+
+getWordIndex :: Tuple Index PartialTermIndex -> String -> [Tuple Pos LineNumber]
+getWordIndex (Tuple i pti) w = fromMaybe (if fst matches then concatMap (\m -> fromJust (lookup m i)) (fromCharArray <$> (snd matches))
+                                                    else [])
+                                    (lookup w i)
+              where matches = searchTermsFromPartial (toCharArray w) pti
+
+pos :: IndexedWord -> Pos
+pos (IndexedWord { word:w, pos:p, line:l }) = p
+
+line :: IndexedWord -> LineNumber
+line (IndexedWord { word:w, pos:p, line:l }) = l
+
+word :: IndexedWord -> Word
+word (IndexedWord { word:w, pos:p, line:l }) = w
+
+getIndexedWords :: Tuple Index PartialTermIndex -> [Word] -> [IndexedWord]
+getIndexedWords i = concatMap (\w -> (<$>) (\(Tuple p l) -> IndexedWord{word:w,pos:p,line:l}) (getWordIndex i w))
+
+
+groupByLine :: [IndexedWord] -> [[IndexedWord]]
+groupByLine = (<$>) (sortBy(compare `on` pos)) <<<
+              groupBy ((==) `on` line) <<<
+              sortBy(compare `on` line)
+
+equalTermsAndResults :: [Word] -> [IndexedWord] -> Boolean
+equalTermsAndResults ws rs = (length ws) <= (length ws') && ((indexOf (joinWith "," (sort ws)) (joinWith "," (sort ws'))) > -1)
+        where ws' = word <$> rs
+
+consecutiveWords :: [IndexedWord] -> Boolean
+consecutiveWords rs = all (\(Tuple x y) -> y - x <= 2) (zip ps (drop 1 ps))
+              where ps = pos <$> rs
+
+toTuple :: IndexedWord -> Tuple Word (Tuple Pos LineNumber)
+toTuple iw = Tuple (word iw) (Tuple (pos iw) (line iw))
+
+search :: Tuple Index PartialTermIndex -> String -> [Tuple Word (Tuple Pos LineNumber)]
+search i s = toTuple <$> (concat (filter predicate (groupByLine plwords)))
+      where
+            predicate = both (equalTermsAndResults cleaned_words) consecutiveWords
+            cleaned_words = (cleanWords <<< words) s
+            plwords = getIndexedWords i cleaned_words
