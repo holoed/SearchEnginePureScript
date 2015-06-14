@@ -1,7 +1,7 @@
 module SearchEngine where
 
 import Data.Maybe.Unsafe (fromJust)
-import Data.Map (Map(), fromList, lookup, insert, empty)
+import Data.Map (Map(), fromList, lookup, insert, empty, values, keys)
 import Control.Apply
 import Data.Tuple
 import Data.String (trim, split, toCharArray, fromCharArray, toLower)
@@ -83,3 +83,18 @@ createPartialTermIndex = createPartialTermIndex' <<< (<$>) toCharArray
         groupBy ((==) `on` head) <<<
         sortBy (compare `on` head) <<<
         filter (not <<< null) $ ws
+
+searchTermsFromPartial :: [Char] -> PartialTermIndex -> Tuple Boolean [[Char]]
+searchTermsFromPartial s d = findTerms s d
+  where
+    flattenValues = (<$>) (s ++) <<< concatMap fst <<< values
+
+    findTerms [] (D d') = Tuple true (flattenValues d')
+    findTerms (x:xs) (D d') =
+      case lookup x d' of
+            Just (Tuple _ d'') -> findTerms xs d''
+            Nothing -> Tuple false (flattenValues d')
+
+createIndex :: Doc -> Tuple Index PartialTermIndex
+createIndex doc = Tuple index (createPartialTermIndex (keys index))
+  where index = createTermIndex doc
