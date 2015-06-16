@@ -103,10 +103,11 @@ createIndex doc = Tuple index (createPartialTermIndex (keys index))
 
 
 getWordIndex :: Tuple Index PartialTermIndex -> String -> [Tuple Pos LineNumber]
-getWordIndex (Tuple i pti) w = fromMaybe (if fst matches then concatMap (\m -> fromJust (lookup m i)) (fromCharArray <$> (snd matches))
-                                                    else [])
-                                    (lookup w i)
+getWordIndex (Tuple i pti) w = fromMaybe partialResults
+                                    ((++partialResults) <$> lookup w i)
               where matches = searchTermsFromPartial (toCharArray w) pti
+                    partialResults = if fst matches then concatMap (\m -> fromJust (lookup m i)) (fromCharArray <$> (snd matches))
+                                                    else []
 
 pos :: IndexedWord -> Pos
 pos (IndexedWord { word:w, pos:p, line:l }) = p

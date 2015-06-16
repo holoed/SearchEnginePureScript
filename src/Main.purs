@@ -125,6 +125,10 @@ main = runNode [consoleReporter] do
         search index "the fut" `shouldEqual` [Tuple "the" (Tuple 2 0), Tuple "fut" (Tuple 3 0)]
         search index "the fus" `shouldEqual` [Tuple "the" (Tuple 0 2), Tuple "fus" (Tuple 1 2)]
 
+    it "should match both the complete term and the partial one" $ do
+        let index  = createIndex ["Harrison Ford", "Ed Harris", "Tom Cruise"]
+        search index "Harris" `shouldEqual` [Tuple ("harris") (Tuple (0) (0)),Tuple ("harris") (Tuple (1) (1))]
+
   describe "search Line numbers" $ do
 
     it "should find line numbers" $ do
