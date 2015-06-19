@@ -131,17 +131,13 @@ equalTermsAndResults :: [Word] -> [IndexedWord] -> Boolean
 equalTermsAndResults ws rs = (length ws) <= (length ws') && ((indexOf (joinWith "," (sort ws)) (joinWith "," (sort ws'))) > -1)
         where ws' = word <$> rs
 
-consecutiveWords :: [IndexedWord] -> Boolean
-consecutiveWords rs = all (\(Tuple x y) -> y - x <= 2) (zip ps (drop 1 ps))
-              where ps = pos <$> rs
-
 toTuple :: IndexedWord -> Tuple Word (Tuple Pos LineNumber)
 toTuple iw = Tuple (word iw) (Tuple (pos iw) (line iw))
 
 search :: Tuple Index PartialTermIndex -> String -> [Tuple Word (Tuple Pos LineNumber)]
 search i s = toTuple <$> (concat (filter predicate (groupByLine plwords)))
       where
-            predicate = both (equalTermsAndResults cleaned_words) consecutiveWords
+            predicate = equalTermsAndResults cleaned_words
             cleaned_words = (cleanWords <<< words) s
             plwords = getIndexedWords i cleaned_words
 
